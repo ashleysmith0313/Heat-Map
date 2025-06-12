@@ -13,15 +13,27 @@ def load_data():
     jobs = pd.read_excel("latest_job_export.xlsx")
     zips = pd.read_excel("uszips.xlsx")
 
-    jobs = jobs[['ID', 'County', 'Postal Code']].drop_duplicates()
-    merged = pd.merge(jobs, zips, left_on='Postal Code', right_on='zip', how='left')
+    # Normalize column names
+    jobs.columns = jobs.columns.str.strip().str.lower()
+    zips.columns = zips.columns.str.strip().str.lower()
 
-    if 'lat' not in merged.columns or 'lng' not in merged.columns:
-        st.error("ZIP merge failed. Ensure ZIP column in job file matches 'zip' in ZIP file.")
+    # Show column names for debugging
+    st.write("🔍 Job Columns:", list(jobs.columns))
+    st.write("📦 ZIP Columns:", list(zips.columns))
+
+    if 'postal code' not in jobs.columns:
+        st.error("❌ 'Postal Code' column not found in job file.")
         st.stop()
 
-    usable = merged[['ID', 'County', 'Postal Code', 'lat', 'lng']].dropna()
-    return usable.drop_duplicates(subset=['Postal Code'])
+    jobs = jobs[['id', 'county', 'postal code']].drop_duplicates()
+    merged = pd.merge(jobs, zips, left_on='postal code', right_on='zip', how='left')
+
+    if 'lat' not in merged.columns or 'lng' not in merged.columns:
+        st.error("❌ ZIP merge failed — lat/lng not found. Check uszips.xlsx.")
+        st.stop()
+
+    usable = merged[['id', 'county', 'postal code', 'lat', 'lng']].dropna()
+    return usable.drop_duplicates(subset=['postal code'])
 
 df = load_data()
 
@@ -36,7 +48,7 @@ for _, row in df.iterrows():
         color='blue',
         fill=True,
         fill_opacity=0.3,
-        popup=f"ID: {row['ID']}\nCounty: {row['County']}\nZIP: {row['Postal Code']}"
+        popup=f"ID: {row['id']}\nCounty: {row['county']}\nZIP: {row['postal code']}"
     ).add_to(m)
 
 if address_input:
