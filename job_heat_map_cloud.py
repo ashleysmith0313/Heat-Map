@@ -9,7 +9,7 @@ from geopy.exc import GeocoderTimedOut
 from geopy.distance import geodesic
 
 st.set_page_config(layout="wide")
-st.title("📍 HeatMapMatrix – Proximity Search Tool")
+st.title("📍 RadiusOS – Proximity Search Tool")
 
 # Load data
 @st.cache_data
