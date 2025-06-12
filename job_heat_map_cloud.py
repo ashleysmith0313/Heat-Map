@@ -12,9 +12,16 @@ st.title("📍 Interactive Job Heat Map with Custom Address Search")
 def load_data():
     jobs = pd.read_excel("latest_job_export.xlsx")
     zips = pd.read_excel("uszips.xlsx")
+
     jobs = jobs[['ID', 'County', 'Postal Code']].drop_duplicates()
     merged = pd.merge(jobs, zips, left_on='Postal Code', right_on='zip', how='left')
-    return merged[['ID', 'County', 'Postal Code', 'lat', 'lng']].dropna().drop_duplicates(subset=['Postal Code'])
+
+    if 'lat' not in merged.columns or 'lng' not in merged.columns:
+        st.error("ZIP merge failed. Ensure ZIP column in job file matches 'zip' in ZIP file.")
+        st.stop()
+
+    usable = merged[['ID', 'County', 'Postal Code', 'lat', 'lng']].dropna()
+    return usable.drop_duplicates(subset=['Postal Code'])
 
 df = load_data()
 
