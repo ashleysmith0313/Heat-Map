@@ -17,9 +17,6 @@ def load_data():
     jobs.columns = jobs.columns.str.strip().str.lower()
     zips.columns = zips.columns.str.strip().str.lower()
 
-    st.write("🔍 Job Columns:", list(jobs.columns))
-    st.write("📦 ZIP Columns:", list(zips.columns))
-
     if 'postal code' not in jobs.columns:
         st.error("❌ 'postal code' column not found in job file.")
         st.stop()
