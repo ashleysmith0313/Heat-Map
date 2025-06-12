@@ -6,7 +6,6 @@ from streamlit_folium import st_folium
 from geopy.geocoders import Nominatim
 
 st.set_page_config(layout="wide")
-
 st.title("📍 Interactive Job Heat Map with Custom Address Search")
 
 @st.cache_data
@@ -14,9 +13,8 @@ def load_data():
     jobs = pd.read_excel("latest_job_export.xlsx")
     zips = pd.read_excel("uszips.xlsx")
     jobs = jobs[['ID', 'County', 'Postal Code']].drop_duplicates()
-    jobs['State'] = jobs['Location'].str.extract(r'US-([A-Z]{2})-')
     merged = pd.merge(jobs, zips, left_on='Postal Code', right_on='zip', how='left')
-    return merged[['ID', 'County', 'Postal Code', 'State', 'lat', 'lng']].dropna().drop_duplicates(subset=['Postal Code'])
+    return merged[['ID', 'County', 'Postal Code', 'lat', 'lng']].dropna().drop_duplicates(subset=['Postal Code'])
 
 df = load_data()
 
