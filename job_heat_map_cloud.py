@@ -17,19 +17,18 @@ def load_data():
     jobs.columns = jobs.columns.str.strip().str.lower()
     zips.columns = zips.columns.str.strip().str.lower()
 
-    # Show column names for debugging
     st.write("🔍 Job Columns:", list(jobs.columns))
     st.write("📦 ZIP Columns:", list(zips.columns))
 
     if 'postal code' not in jobs.columns:
-        st.error("❌ 'Postal Code' column not found in job file.")
+        st.error("❌ 'postal code' column not found in job file.")
         st.stop()
 
     jobs = jobs[['id', 'county', 'postal code']].drop_duplicates()
     merged = pd.merge(jobs, zips, left_on='postal code', right_on='zip', how='left')
 
     if 'lat' not in merged.columns or 'lng' not in merged.columns:
-        st.error("❌ ZIP merge failed — lat/lng not found. Check uszips.xlsx.")
+        st.error("❌ ZIP merge failed — 'lat' or 'lng' not found. Check uszips.xlsx.")
         st.stop()
 
     usable = merged[['id', 'county', 'postal code', 'lat', 'lng']].dropna()
