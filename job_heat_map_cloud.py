@@ -2,77 +2,65 @@
 import streamlit as st
 import pandas as pd
 import folium
-from folium.plugins import MarkerCluster
 from streamlit_folium import st_folium
 from geopy.geocoders import Nominatim
-from geopy.exc import GeocoderTimedOut
-from math import radians, cos, sin, asin, sqrt
 
 st.set_page_config(layout="wide")
-st.title("📍 HeatMapMatrix – Territory Intelligence Dashboard")
-
-# User-defined radius input
-radius_miles = st.slider("🔁 Select Radius (in miles)", min_value=5, max_value=100, value=25)
-
-# Load data
-jobs_file = "latest_job_export.xlsx"
-zips_file = "uszips.xlsx"
+st.title("📍 Interactive Job Heat Map with Custom Address Search")
 
 @st.cache_data
 def load_data():
-    jobs = pd.read_excel(jobs_file)
-    zips = pd.read_excel(zips_file)
-    jobs.columns = jobs.columns.str.lower()
-    zips.columns = zips.columns.str.lower()
-    return jobs, zips
+    jobs = pd.read_excel("latest_job_export.xlsx")
+    zips = pd.read_excel("uszips.xlsx")
 
-jobs, zips = load_data()
+    # Normalize column names
+    jobs.columns = jobs.columns.str.strip().str.lower()
+    zips.columns = zips.columns.str.strip().str.lower()
 
-# Merge on zip
-merged = pd.merge(jobs, zips, how="left", left_on="zip", right_on="zip")
+    # Show column names for debugging
+    st.write("🔍 Job Columns:", list(jobs.columns))
+    st.write("📦 ZIP Columns:", list(zips.columns))
 
-# Remove duplicates
-merged = merged.drop_duplicates(subset=["id", "zip", "county"])
+    if 'postal code' not in jobs.columns:
+        st.error("❌ 'Postal Code' column not found in job file.")
+        st.stop()
 
-# Center map
-m = folium.Map(location=[39.5, -98.35], zoom_start=5, control_scale=True)
-marker_cluster = MarkerCluster().add_to(m)
+    jobs = jobs[['id', 'county', 'postal code']].drop_duplicates()
+    merged = pd.merge(jobs, zips, left_on='postal code', right_on='zip', how='left')
 
-# Add job markers
-for _, row in merged.iterrows():
-    lat, lng = row["lat"], row["lng"]
-    if pd.notnull(lat) and pd.notnull(lng):
-        tooltip = f"ID: {row['id']}<br>County: {row['county']}<br>ZIP: {row['zip']}"
-        folium.Circle(
-            location=(lat, lng),
-            radius=radius_miles * 1609.34,  # convert miles to meters
-            color="blue",
-            fill=True,
-            fill_opacity=0.25,
-            tooltip=tooltip
-        ).add_to(marker_cluster)
+    if 'lat' not in merged.columns or 'lng' not in merged.columns:
+        st.error("❌ ZIP merge failed — lat/lng not found. Check uszips.xlsx.")
+        st.stop()
 
-# Address search
-geolocator = Nominatim(user_agent="heatmap_app")
+    usable = merged[['id', 'county', 'postal code', 'lat', 'lng']].dropna()
+    return usable.drop_duplicates(subset=['postal code'])
 
-def geocode_address(address):
-    try:
-        return geolocator.geocode(address, timeout=10)
-    except GeocoderTimedOut:
-        return None
+df = load_data()
 
-address = st.text_input("📫 Enter Address to Pin", "")
-if address:
-    location = geocode_address(address)
+address_input = st.text_input("Enter an address to drop a pin:", "")
+
+m = folium.Map(location=[df['lat'].mean(), df['lng'].mean()], zoom_start=5, tiles="CartoDB positron")
+
+for _, row in df.iterrows():
+    folium.Circle(
+        location=(row['lat'], row['lng']),
+        radius=40233.6,
+        color='blue',
+        fill=True,
+        fill_opacity=0.3,
+        popup=f"ID: {row['id']}\nCounty: {row['county']}\nZIP: {row['postal code']}"
+    ).add_to(m)
+
+if address_input:
+    geolocator = Nominatim(user_agent="job_map_app")
+    location = geolocator.geocode(address_input)
     if location:
         folium.Marker(
-            [location.latitude, location.longitude],
-            popup=address,
-            icon=folium.Icon(color="red", icon="info-sign")
+            location=(location.latitude, location.longitude),
+            popup=f"📍 {address_input}",
+            icon=folium.Icon(color='red', icon='home')
         ).add_to(m)
-        st.success("Address pinned successfully!")
     else:
-        st.error("Address not found. Try again.")
+        st.warning("Address not found. Try again.")
 
-# Display map
-st_data = st_folium(m, width=1400, height=700)
+st_folium(m, width=1200, height=700)
